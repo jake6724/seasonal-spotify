@@ -9,29 +9,14 @@ class SpotifyTool:
 		test = 123
 	
 	def get_auth_token(self):
-		auth_data = {
-			'grant_type': 'client_credentials',
-			'client_id': consts.CLIENT_ID,
-			'client_secret': consts.CLIENT_SECRET
-		}
-
-		# print(auth_data)
-
-		auth_data_json = json.dumps(auth_data)
-
-		print(auth_data_json)
-		
-
-
-		pl = {
+		payload = {
     			'grant_type': 'client_credentials',
     			'client_id': f'{consts.CLIENT_ID}',
     			'client_secret': f'{consts.CLIENT_SECRET}',
 			}
-		print(pl)
-			
-		# response = requests.post('https://accounts.spotify.com/api/token', data=pl)
-		# print(response.text)
+	
+		response = requests.post('https://accounts.spotify.com/api/token', data=payload)
+		print(response.text)
 
 # runner 
 
