@@ -9,9 +9,10 @@ SPT = SpotifyTool()
 ADT = AlbumDataTool()
 
 # Generate album data file from Billboard Top 200 dataset
-# ADT.write_album_data()
-# album_data = ADT.read_album_data()
+ADT.write_album_data()
+album_data = ADT.read_album_data()
 
+# Initialize spotify tool data
 SPT.update_auth_token()
 SPT.print_tool_data()
 

@@ -3,6 +3,9 @@ import requests
 
 """
 TODO: Add URL reponse checking / error handling
+TODO: Convert print statements to an error log ? 
+TODO: Add type hinting to func params
+TODO: Finish all Docstrings
 """
 
 class SpotifyTool: 
@@ -13,6 +16,7 @@ class SpotifyTool:
 		self.SPOTIFY_SEARCH_URL = "https://api.spotify.com/v1/search"
 		self.AUTH_TOKEN = ""
 		self.CREDENTIALS_HEADER = {'Authorization': f'Bearer {self.AUTH_TOKEN}'}
+		self.MAX_RETRIES = 1
 
 		# Read client creds from local file
 		with open("client_creds", "r") as client_creds:
@@ -30,46 +34,67 @@ class SpotifyTool:
 			}
 	
 		auth_token_request = requests.post(self.SPOTIFY_TOKEN_URL, data=credentials_payload)
-		auth_token_dict = auth_token_request.json()
-		access_token = auth_token_dict["access_token"]
-		
+
+		if auth_token_request.status_code == 200:
+			try:
+				auth_token_dict = auth_token_request.json()
+				access_token = auth_token_dict["access_token"]
+			except Exception as e:
+				print(e)
+				return
+		elif auth_token_request.status_code == 400:
+			print(auth_token_request.text)
+			print("Check that client credentials in 'client_creds' are correct")
+			return
+		else:
+			print(auth_token_request.text)
+			return
+
 		# Update global vars
 		self.AUTH_TOKEN = access_token
 		self.CREDENTIALS_HEADER = {'Authorization': f'Bearer {self.AUTH_TOKEN}'}
 
 
-	def get_album_data(self, artist, album_name) -> tuple[str, str]:
+	def get_album_data(self, artist: str, album_name: str) -> tuple[str, str, str]:
 		album_query = {
 			'q': f'{artist} {album_name}',
 			'type': 'album'
 		}
-		album_reponse = requests.get(self.SPOTIFY_SEARCH_URL, params=album_query, headers=self.CREDENTIALS_HEADER)
 
-		album_data = album_reponse.json()	# Convert album json ovbject to dict
+		for attempt in range(self.MAX_RETRIES + 1):	# Allow 401 error to update token and retry specified number of times
+			album_reponse = requests.get(self.SPOTIFY_SEARCH_URL, params=album_query, headers=self.CREDENTIALS_HEADER)
 
-		album_url = (album_data["albums"]["items"][0]["external_urls"]["spotify"])
-		album_img_url = (album_data["albums"]["items"][0]["images"][1]["url"])
+			if album_reponse.status_code == 200:
+				try:
+					album_data = album_reponse.json()	# Convert album json vbject to dict
 
-		return (album_url, album_img_url)
-
+					album_url = (album_data["albums"]["items"][0]["external_urls"]["spotify"])
+					album_img_url = (album_data["albums"]["items"][0]["images"][1]["url"])
+					album_release_date = (album_data["albums"]["items"][0]["release_date"])
+					return (album_url, album_img_url, album_release_date)
+				
+				except Exception as e:
+					print(e)
+					return
+				
+			elif album_reponse.status_code == 401:
+				self.update_auth_token()
+		return	# Case that all attempts to access album data failed
 
 	def download_img(self, image_url: str) -> None:
-		image_data = requests.get(image_url).content
-		with open("current_img", "wb") as f:
-			f.write(image_data)
+		try:
+			img_download_response = requests.get(image_url)
+		except Exception as e:
+			print(e)
+			return 
+
+		if img_download_response == 200:
+			img_download_content = img_download_response.content
+			with open("current_img", "wb") as f:
+				f.write(img_download_content)
+		else:
+			print("Non 200 status code recieved during image download")
 
 
 	def print_tool_data(self):
 		print(f"CLIENT_ID: {self.CLIENT_ID}\nCLIENT_SECRET: {self.CLIENT_SECRET}\nSPOTIFY_TOKEN_URL: {self.SPOTIFY_TOKEN_URL}\nSPOTIFY_SEARCH_URL: {self.SPOTIFY_SEARCH_URL}\nAUTH_TOKEN: {self.AUTH_TOKEN}\nCREDENTIALS: {self.CREDENTIALS_HEADER}")
-
-# runner 
-# ST = SpotifyTool()
-# ST.update_auth_token()
-
-# # album_image_url = ST.get_album_image_url("https://open.spotify.com/album/4KKRAmQ0ksj32l7mrgLOcF")
-# # print(album_image_url)
-
-# ST.get_album_data("jamey johnson", "living for a song: a tribute to hank cochran")
-
-
-# # ST.download_image(album_image_url)
