@@ -38,9 +38,6 @@ class SpotifyTool:
 			'type': 'album'
 		}
 		album_reponse = requests.get(self.SPOTIFY_SEARCH_URL, params=album_query, headers=self.CREDENTIALS)
-		
-		with open("test", "w") as f:
-			f.write(album_reponse.text)
 
 		album_data = album_reponse.json()	# Convert album json ovbject to dict
 
@@ -52,7 +49,7 @@ class SpotifyTool:
 
 	def download_img(self, image_url: str) -> None:
 		image_data = requests.get(image_url).content
-		with open("test.png", "wb") as f:
+		with open("current_img", "wb") as f:
 			f.write(image_data)
 
 
