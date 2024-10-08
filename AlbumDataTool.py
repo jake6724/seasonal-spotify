@@ -1,14 +1,18 @@
 import pandas as pd
 from collections import defaultdict
 
-#TODO: Get rif of none at end of album_data.txt
+"""
+TODO: Get rid of none at end of album_data.txt
+TODO: 'various artists' is a very common artist... is this an issue?
+"""
 
 class AlbumDataTool:
 	def __init__(self) -> None:
 		self.BILLBOARD_200_FILE = "billboard-200-current.csv"
 		self.ALBUM_DATA_OUTPUT_FILE = "album_data.txt"
 
-	def write_billboard_data(self) -> None:
+	def write_album_data(self) -> None:
+		"""Process the data from billboard-200-current.csv and write it to a txt file"""
 		ALBUM_DATA_FILE = "album_data.txt"
 		BILLBOARD_200_FILE = "billboard-200-current.csv"
 
@@ -28,13 +32,12 @@ class AlbumDataTool:
 				album_data.write(f"{key}\n")
 	
 	def read_album_data(self) -> list[list[str]]:
-		with open(self.ALBUM_DATA_OUTPUT_FILE, "r") as f:	 # TODO: Specify encoding
-			for line in f:
-				print(line.strip().split("/"))
-
-
-# Runner
-AT = AlbumDataTool()
-AT.write_billboard_data()
-r = AT.read_album_data()
-print(r)
+		"""
+		Return a list of album data that was written to the album data file. 
+		Album data is stored as a sublist [album_performer, album_title]
+		"""
+		album_data_list = []
+		with open(self.ALBUM_DATA_OUTPUT_FILE, "r") as album_data:	 # TODO: Specify encoding
+			for line in album_data:
+				album_data_list.append(line.strip().split("/"))
+		return album_data_list
