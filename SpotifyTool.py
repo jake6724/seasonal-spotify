@@ -7,12 +7,18 @@ TODO: Add URL reponse checking / error handling
 
 class SpotifyTool: 
 	def __init__(self):
-		self.CLIENT_ID = "9a7802fd1a194ad884d73abf47de35f2"
-		self.CLIENT_SECRET = "aff44ac1c3f341d39b945a2875a5ad07"
+		self.CLIENT_ID = ""
+		self.CLIENT_SECRET = ""
 		self.SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token"
 		self.SPOTIFY_SEARCH_URL = "https://api.spotify.com/v1/search"
 		self.AUTH_TOKEN = ""
-		self.CREDENTIALS = {'Authorization': f'Bearer {self.AUTH_TOKEN}'}
+		self.CREDENTIALS_HEADER = {'Authorization': f'Bearer {self.AUTH_TOKEN}'}
+
+		# Read client creds from local file
+		with open("client_creds", "r") as client_creds:
+			creds = client_creds.readlines()
+			self.CLIENT_ID = creds[0].strip()
+			self.CLIENT_SECRET = creds[1].strip()
 
 	def update_auth_token(self) -> None:
 		"""Update the value of AUTH_TOKEN in Constants"""	
@@ -23,13 +29,13 @@ class SpotifyTool:
     			'client_secret': f'{self.CLIENT_SECRET}'
 			}
 	
-		auth_token_json = requests.post(self.SPOTIFY_TOKEN_URL, data=credentials_payload)
-		auth_token_dict = json.loads(auth_token_json.text)	
+		auth_token_request = requests.post(self.SPOTIFY_TOKEN_URL, data=credentials_payload)
+		auth_token_dict = auth_token_request.json()
 		access_token = auth_token_dict["access_token"]
 		
 		# Update global vars
 		self.AUTH_TOKEN = access_token
-		self.CREDENTIALS = {'Authorization': f'Bearer {self.AUTH_TOKEN}'}
+		self.CREDENTIALS_HEADER = {'Authorization': f'Bearer {self.AUTH_TOKEN}'}
 
 
 	def get_album_data(self, artist, album_name) -> tuple[str, str]:
@@ -37,7 +43,7 @@ class SpotifyTool:
 			'q': f'{artist} {album_name}',
 			'type': 'album'
 		}
-		album_reponse = requests.get(self.SPOTIFY_SEARCH_URL, params=album_query, headers=self.CREDENTIALS)
+		album_reponse = requests.get(self.SPOTIFY_SEARCH_URL, params=album_query, headers=self.CREDENTIALS_HEADER)
 
 		album_data = album_reponse.json()	# Convert album json ovbject to dict
 
@@ -54,7 +60,7 @@ class SpotifyTool:
 
 
 	def print_tool_data(self):
-		print(f"CLIENT_ID: {self.CLIENT_ID}\nCLIENT_SECRET: {self.CLIENT_SECRET}\nSPOTIFY_TOKEN_URL: {self.SPOTIFY_TOKEN_URL}\nSPOTIFY_SEARCH_URL: {self.SPOTIFY_SEARCH_URL}\nAUTH_TOKEN: {self.AUTH_TOKEN}\nCREDENTIALS: {self.CREDENTIALS}")
+		print(f"CLIENT_ID: {self.CLIENT_ID}\nCLIENT_SECRET: {self.CLIENT_SECRET}\nSPOTIFY_TOKEN_URL: {self.SPOTIFY_TOKEN_URL}\nSPOTIFY_SEARCH_URL: {self.SPOTIFY_SEARCH_URL}\nAUTH_TOKEN: {self.AUTH_TOKEN}\nCREDENTIALS: {self.CREDENTIALS_HEADER}")
 
 # runner 
 # ST = SpotifyTool()
