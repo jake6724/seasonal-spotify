@@ -9,10 +9,13 @@ Fix variable names... some too generic some too specific
 SPT = SpotifyTool()
 ADT = AlbumDataTool()
 
-new_album = SPT.get_album("The Beatles", "Revolver")
-print(new_album)
-SPT.store_album(new_album)
-SPT.print_database()
+r = SPT.get_album("The Beatles", "Revolver (Remastered)")
+print(r)
+
+# new_album = SPT.get_album("The Beatles", "Revolver")
+# print(new_album)
+# SPT.store_album(new_album)
+# SPT.print_database()
 
 # A = Album("jake's album","jake aldridge","www.fuck.com", "www.jake's-album.png", "12-01-1999")
 # print(A)

@@ -1,3 +1,5 @@
+# TODO: Release date formatting needs error handling
+
 class Album():
 	def __init__(self, title: str, artist: str, url: str, img_url: str, release_date: str) -> None:
 		self.title: str = title

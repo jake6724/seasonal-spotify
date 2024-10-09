@@ -5,7 +5,8 @@ from collections import defaultdict
 from Album import Album
 
 """
-TODO: Make a class for album data that is returned from api? Like class Album with data url, img_url, name, artist, etc
+TODO: Figure out what to do about album names with like remasted and stuff in them
+
 TODO: Add URL reponse checking / error handling
 TODO: Convert print statements to an error log ? 
 TODO: Add type hinting to func params
@@ -83,13 +84,13 @@ class SpotifyTool:
 		for year in self.album_database:
 			print(f"{year}: {self.album_database[year]}")
 
-	def get_album(self, artist: str, album_name: str) -> Album:
+	def get_album(self, artist: str, album_title: str) -> Album:
 		"""
 		Get album by artist and title with Spotify API.\n
 		Return: new Album obj.  
 		"""
 		album_query = {
-			'q': f'{artist} {album_name}',
+			'q': f'{artist} {album_title}',
 			'type': 'album',
 			'limit': 1
 		}
@@ -101,15 +102,16 @@ class SpotifyTool:
 				try:
 					album_data = album_reponse.json()	# Convert album json object to dict
 
-					album_name = (album_data["albums"]["items"][0]["name"])
-					album_artist = (album_data["albums"]["items"][0]["artists"][0]["name"]) # TODO: This will only grab the first artist listed
-					album_url = (album_data["albums"]["items"][0]["external_urls"]["spotify"])
-					album_img_url = (album_data["albums"]["items"][0]["images"][1]["url"])
-					album_release_date = (album_data["albums"]["items"][0]["release_date"])
+					# TODO: Is there a better way to search for all of this? Maybe JMEPath package
+					album_title = (album_data["albums"]["items"][0]["name"]).strip()
+					album_artist = (album_data["albums"]["items"][0]["artists"][0]["name"]).strip() # TODO: This will only grab the first artist listed
+					album_url = (album_data["albums"]["items"][0]["external_urls"]["spotify"]).strip() 
+					album_img_url = (album_data["albums"]["items"][0]["images"][1]["url"]).strip() 
+					album_release_date = (album_data["albums"]["items"][0]["release_date"]).strip() 
+					new_album = Album(album_title, album_artist, album_url, album_img_url, album_release_date)
 
-					new_album = Album(album_name, album_artist, album_url, album_img_url, album_release_date)
-
-					return new_album
+					# Try to validate if the album accessed is the album intended by the query above
+					return new_album if self.validate_album(artist, album_title, new_album) else None
 				
 				except Exception:
 					print(traceback.format_exc())
@@ -119,6 +121,16 @@ class SpotifyTool:
 				self.update_auth_token()
 		return	# Case that all attempts to access album data failed
 	
+	def validate_album(self, search_artist: str, search_album_title: str, Album: Album) -> bool:
+		"""
+		Check whether the meta-data in Album obj. matches the original search parameter\n
+		This is intended to check if get_album() returned the correct album, since the spotify API will return options even if it cannot find an exact match
+		to the search query. This method is likely not full-proof...
+		"""
+		# print(f"Comparing {Album.artist} to {search_artist}")
+		# print(f"Comparing {Album.title} to {search_album_title}") 
+		return True if (Album.artist == search_artist) and (Album.title == search_album_title) else False
+
 	def store_album(self, album: Album) -> None:
 		self.album_database[album.release_year][album.release_month][album.release_day].append(album.img_url)	# Store the album img url at year -> month -> day [img_url]
 
@@ -135,7 +147,6 @@ class SpotifyTool:
 				f.write(img_download_content)
 		else:
 			print("Non 200 status code recieved during image download")
-
 
 	def print_tool_data(self):
 		print(f"CLIENT_ID: {self.CLIENT_ID}\nCLIENT_SECRET: {self.CLIENT_SECRET}\nSPOTIFY_TOKEN_URL: {self.SPOTIFY_TOKEN_URL}\nSPOTIFY_SEARCH_URL: {self.SPOTIFY_SEARCH_URL}\nAUTH_TOKEN: {self.AUTH_TOKEN}\nCREDENTIALS: {self.CREDENTIALS_HEADER}")
