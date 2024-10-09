@@ -4,16 +4,6 @@ from collections import defaultdict
 """
 TODO: Need to store release date with url and img
 TODO: Add type hinting to func params
-TODO: When reading data, store in the following structure:
-	dict Albums
-		each key is a year
-		each value is a list
-				list is filled with dicts
-					each key is month
-					each value is list
-						each list is songs released that month
-
-	So basically access year, then month, then list of songs
 
 TODO: Get rid of none at end of album_data.txt
 TODO: 'various artists' is a very common artist... is this an issue?
@@ -51,6 +41,8 @@ class AlbumDataTool:
 		Album data is stored as a sublist [album_performer, album_title]
 		"""
 		album_data_list = []
+	
+
 		with open(self.ALBUM_DATA_OUTPUT_FILE, "r") as album_data:	 # TODO: Specify encoding
 			for line in album_data:
 				album_data_list.append(line.strip().split("/"))

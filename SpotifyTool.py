@@ -1,7 +1,11 @@
 import json
 import requests
+import traceback
+from collections import defaultdict
+from Album import Album
 
 """
+TODO: Make a class for album data that is returned from api? Like class Album with data url, img_url, name, artist, etc
 TODO: Add URL reponse checking / error handling
 TODO: Convert print statements to an error log ? 
 TODO: Add type hinting to func params
@@ -17,13 +21,19 @@ class SpotifyTool:
 		self.AUTH_TOKEN = ""
 		self.CREDENTIALS_HEADER = {'Authorization': f'Bearer {self.AUTH_TOKEN}'}
 		self.MAX_RETRIES = 1
+		self.read_credentials()
+		self.update_auth_token()
 
+		self.album_database = {}
+		self.initialize_album_database()
+
+	def read_credentials(self):
 		# Read client creds from local file
 		with open("client_creds", "r") as client_creds:
 			creds = client_creds.readlines()
 			self.CLIENT_ID = creds[0].strip()
 			self.CLIENT_SECRET = creds[1].strip()
-
+	
 	def update_auth_token(self) -> None:
 		"""Update the value of AUTH_TOKEN in Constants"""	
 
@@ -54,11 +64,34 @@ class SpotifyTool:
 		self.AUTH_TOKEN = access_token
 		self.CREDENTIALS_HEADER = {'Authorization': f'Bearer {self.AUTH_TOKEN}'}
 
+	def initialize_album_database(self):
+		"""Create database structure:\n
+		   self.album_database = {1999: {1: {1:[], 2:[], 3:[], etc.}, 2:{1:[], 2:[], 3:[], etc.}, etc.}, 2000: {1: {1:[], 2:[], 3:[], etc.}, 2:{1:[], 2:[], 3:[], etc.}, etc.}}}\n
+		   Database can be accessed SpotifyTool.album_database[year][month][day][index]. 
+		   [day] points to a list which contains all albums released that day, unsorted.
 
-	def get_album_data(self, artist: str, album_name: str) -> tuple[str, str, str]:
+		"""
+		for year in range(1958, 2022):
+			self.album_database[year] = {}
+			for month in range(1, 13):
+				self.album_database[year][month] = {}
+				for day in range(1, 31):
+					self.album_database[year][month][day] = []
+
+	def print_database(self):
+		# TODO: Output too large to be useful. Maybe write to a file in a nicely formatted way?
+		for year in self.album_database:
+			print(f"{year}: {self.album_database[year]}")
+
+	def get_album(self, artist: str, album_name: str) -> Album:
+		"""
+		Get album by artist and title with Spotify API.\n
+		Return: new Album obj.  
+		"""
 		album_query = {
 			'q': f'{artist} {album_name}',
-			'type': 'album'
+			'type': 'album',
+			'limit': 1
 		}
 
 		for attempt in range(self.MAX_RETRIES + 1):	# Allow 401 error to update token and retry specified number of times
@@ -66,20 +99,28 @@ class SpotifyTool:
 
 			if album_reponse.status_code == 200:
 				try:
-					album_data = album_reponse.json()	# Convert album json vbject to dict
+					album_data = album_reponse.json()	# Convert album json object to dict
 
+					album_name = (album_data["albums"]["items"][0]["name"])
+					album_artist = (album_data["albums"]["items"][0]["artists"][0]["name"]) # TODO: This will only grab the first artist listed
 					album_url = (album_data["albums"]["items"][0]["external_urls"]["spotify"])
 					album_img_url = (album_data["albums"]["items"][0]["images"][1]["url"])
 					album_release_date = (album_data["albums"]["items"][0]["release_date"])
-					return (album_url, album_img_url, album_release_date)
+
+					new_album = Album(album_name, album_artist, album_url, album_img_url, album_release_date)
+
+					return new_album
 				
-				except Exception as e:
-					print(e)
+				except Exception:
+					print(traceback.format_exc())
 					return
 				
 			elif album_reponse.status_code == 401:
 				self.update_auth_token()
 		return	# Case that all attempts to access album data failed
+	
+	def store_album(self, album: Album) -> None:
+		self.album_database[album.release_year][album.release_month][album.release_day].append(album.img_url)	# Store the album img url at year -> month -> day [img_url]
 
 	def download_img(self, image_url: str) -> None:
 		try:
