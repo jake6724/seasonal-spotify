@@ -103,6 +103,9 @@ class SpotifyTool:
 					album_data = album_reponse.json()	# Convert album json object to dict
 
 					# TODO: Is there a better way to search for all of this? Maybe JMEPath package
+					# TODO: If we don't find the correct album, try the next one in the list ?
+					# ISSUE: If an album got popular after its release (Nat king cole christmas song), it hard to validate it...
+
 					album_title = (album_data["albums"]["items"][0]["name"]).strip()
 					album_artist = (album_data["albums"]["items"][0]["artists"][0]["name"]).strip() # TODO: This will only grab the first artist listed
 					album_url = (album_data["albums"]["items"][0]["external_urls"]["spotify"]).strip() 

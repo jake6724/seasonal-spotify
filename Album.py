@@ -7,10 +7,14 @@ class Album():
 		self.url: str = url
 		self. img_url: str = img_url
 		self.release_date: str = release_date
+		print(self.release_date)
+
 		self.process_release_date()
 
 	def process_release_date(self) -> None:
 		date_list = [int(date_value) for date_value in self.release_date.split("-")] # Create list of album release data. Cast each date value to int
+		print(f"Date list: {date_list}")
+
 		self.release_year = date_list[0]
 		self.release_month = date_list[1]
 		self.release_day = date_list[2]

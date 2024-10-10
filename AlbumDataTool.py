@@ -1,4 +1,5 @@
 import pandas as pd
+import csv
 from collections import defaultdict
 
 """
@@ -12,38 +13,25 @@ TODO: Add type hinting to func params
 
 class AlbumDataTool:
 	def __init__(self) -> None:
-		self.BILLBOARD_200_FILE = "billboard-200-current.csv"
-		self.ALBUM_DATA_OUTPUT_FILE = "album_data.txt"
+		self.INPUT_FILE = "billboard-200-current.csv"
+		self.OUTPUT_FILE = "album_data.txt"
 
-	def write_album_data(self) -> None:
-		"""Process the data from billboard-200-current.csv and write it to a txt file"""
-		ALBUM_DATA_FILE = "album_data.txt"
-		BILLBOARD_200_FILE = "billboard-200-current.csv"
+	def process_album_data(self) -> list[list[str, str, str]]:
+		"""Process csv file, return list of album info. Each 'album info' is a list of [artist, album title, release date]"""
+		seen = set()
+		album_list = []
 
-		billboard_200_dataframe = pd.read_csv(BILLBOARD_200_FILE)
-		albums = defaultdict(int)
+		# Dont write to file, then load again...
+		# Just return a list of all the sublists, skip the middle man! 
 
-		for row in billboard_200_dataframe.iterrows():
-			album_performer = str(row[1]['performer'])
-			album_title = str(row[1]['title'])
-			album_info = (album_performer + "/" + album_title).lower()
-			
-			if albums[album_info] == 0:
-				albums[album_info] = 1
+		with open(self.INPUT_FILE, "r") as input, open(self.OUTPUT_FILE, "w") as output:
+			data = csv.reader(input, delimiter=',')
+			for line in data:
+				album_info = [line[3], line[2], line[0]] # Artist, album title, release date
 
-		with open(ALBUM_DATA_FILE, "w") as album_data:
-			for key in sorted(albums.keys()):
-				album_data.write(f"{key}\n")
-	
-	def read_album_data(self) -> list[list[str]]:
-		"""
-		Return a list of album data that was written to the album data file. 
-		Album data is stored as a sublist [album_performer, album_title]
-		"""
-		album_data_list = []
-	
+				album_id = f"{album_info[0]} {album_info[1]}"	# Only store each album one time
+				if album_id not in seen:
+					seen.add(album_id)
+					album_list.append(album_info)
 
-		with open(self.ALBUM_DATA_OUTPUT_FILE, "r") as album_data:	 # TODO: Specify encoding
-			for line in album_data:
-				album_data_list.append(line.strip().split("/"))
-		return album_data_list
+		return album_list
