@@ -21,9 +21,6 @@ class AlbumDataTool:
 		seen = set()
 		album_list = []
 
-		# Dont write to file, then load again...
-		# Just return a list of all the sublists, skip the middle man! 
-
 		with open(self.INPUT_FILE, "r") as input, open(self.OUTPUT_FILE, "w") as output:
 			data = csv.reader(input, delimiter=',')
 			for line in data:
