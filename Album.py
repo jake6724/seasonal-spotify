@@ -1,19 +1,17 @@
-# TODO: Release date formatting needs error handling
+import Utilities
 
 class Album():
 	def __init__(self, title: str, artist: str, url: str, img_url: str, release_date: str) -> None:
-		self.title: str = title
-		self.artist: str = artist
+		self.title: str = Utilities.remove_accents(title)
+		self.artist: str = Utilities.remove_accents(artist)
 		self.url: str = url
 		self. img_url: str = img_url
 		self.release_date: str = release_date
-		print(self.release_date)
 
 		self.process_release_date()
 
 	def process_release_date(self) -> None:
 		date_list = [int(date_value) for date_value in self.release_date.split("-")] # Create list of album release data. Cast each date value to int
-		print(f"Date list: {date_list}")
 
 		self.release_year = date_list[0]
 		self.release_month = date_list[1]

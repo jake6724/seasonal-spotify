@@ -1,7 +1,7 @@
 import json
 import requests
 import traceback
-from collections import defaultdict
+import Utilities
 from Album import Album
 
 """
@@ -22,6 +22,7 @@ class SpotifyTool:
 		self.AUTH_TOKEN = ""
 		self.CREDENTIALS_HEADER = {'Authorization': f'Bearer {self.AUTH_TOKEN}'}
 		self.MAX_RETRIES = 1
+		self.REQUEST_COUNT = 10
 		self.read_credentials()
 		self.update_auth_token()
 
@@ -38,7 +39,7 @@ class SpotifyTool:
 	def update_auth_token(self) -> None:
 		"""Update the value of AUTH_TOKEN in Constants"""	
 
-		credentials_payload = {	
+		credentials_payload = {
     			'grant_type': 'client_credentials',
     			'client_id': f'{self.CLIENT_ID}',
     			'client_secret': f'{self.CLIENT_SECRET}'
@@ -89,32 +90,55 @@ class SpotifyTool:
 		Get album by artist and title with Spotify API.\n
 		Return: new Album obj.  
 		"""
+		
 		album_query = {
 			'q': f'{artist} {album_title}',
 			'type': 'album',
-			'limit': 1
+			'limit': f'{self.REQUEST_COUNT}'
 		}
 
-		for attempt in range(self.MAX_RETRIES + 1):	# Allow 401 error to update token and retry specified number of times
+		for query in range(self.MAX_RETRIES + 1):	# Allow 401 error to update token and retry specified number of times
 			album_reponse = requests.get(self.SPOTIFY_SEARCH_URL, params=album_query, headers=self.CREDENTIALS_HEADER)
 
+			with open("./debug/album_full.json", "w") as f:
+				f.write(album_reponse.text) 
+			
 			if album_reponse.status_code == 200:
 				try:
-					album_data = album_reponse.json()	# Convert album json object to dict
+					for i in range(self.REQUEST_COUNT): 	# Try all items returned by request
+						album_data = album_reponse.json()	
 
-					# TODO: Is there a better way to search for all of this? Maybe JMEPath package
-					# TODO: If we don't find the correct album, try the next one in the list ?
-					# ISSUE: If an album got popular after its release (Nat king cole christmas song), it hard to validate it...
+						# TODO: Is there a better way to search for all of this? Maybe JMEPath package
+						# TODO: If we don't find the correct album, try the next one in the list ?
+						# ISSUE: If an album got popular after its release (Nat king cole christmas song), it hard to validate it...
 
-					album_title = (album_data["albums"]["items"][0]["name"]).strip()
-					album_artist = (album_data["albums"]["items"][0]["artists"][0]["name"]).strip() # TODO: This will only grab the first artist listed
-					album_url = (album_data["albums"]["items"][0]["external_urls"]["spotify"]).strip() 
-					album_img_url = (album_data["albums"]["items"][0]["images"][1]["url"]).strip() 
-					album_release_date = (album_data["albums"]["items"][0]["release_date"]).strip() 
-					new_album = Album(album_title, album_artist, album_url, album_img_url, album_release_date)
+						album_release_date_precision = (album_data["albums"]["items"][0]["release_date_precision"]).strip() 
+						if album_release_date_precision != "day": # We could switch this to month, but it would require extra work for the release date formatting
+							continue
 
-					# Try to validate if the album accessed is the album intended by the query above
-					return new_album if self.validate_album(artist, album_title, new_album) else None
+						album_title = (album_data["albums"]["items"][i]["name"]).strip()
+						album_artist = (album_data["albums"]["items"][i]["artists"][0]["name"]).strip() # TODO: This will only grab the first artist listed
+						album_url = (album_data["albums"]["items"][i]["external_urls"]["spotify"]).strip() 
+						album_img_url = (album_data["albums"]["items"][i]["images"][1]["url"]).strip() 
+						album_release_date = (album_data["albums"]["items"][i]["release_date"]).strip() 
+						new_album = Album(album_title, album_artist, album_url, album_img_url, album_release_date)
+
+						def debug(index: int, new_album: Album) -> None: # Write to a file for debugging
+							with open(f"./debug/album_items.txt", "a") as f: 
+								f.write(f"Item {i}===============================================================================================\n")
+								f.write(f"album_title: {new_album.title}\n")
+								f.write(f"album_artist: {new_album.artist}\n")
+								f.write(f"album_artist: {new_album.url}\n")
+								f.write(f"album_artist: {new_album.img_url}\n")
+								f.write(f"album_artist: {new_album.release_date}\n")
+
+						# debug(i, new_album)
+
+						# Try to validate if the album accessed is the album intended by the query above
+						if self.validate_album(artist, album_title, new_album):
+							return new_album
+						
+					return # No query response items matched
 				
 				except Exception:
 					print(traceback.format_exc())
@@ -122,7 +146,9 @@ class SpotifyTool:
 				
 			elif album_reponse.status_code == 401:
 				self.update_auth_token()
-		return	# Case that all attempts to access album data failed
+
+		return	# Query could not authenticate after self.MAX_RETRIES number of attempts
+	
 	
 	def validate_album(self, search_artist: str, search_album_title: str, Album: Album) -> bool:
 		"""
