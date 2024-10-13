@@ -15,6 +15,9 @@ class Album():
 	def process_release_date(self) -> None:
 		date_list = [int(date_value) for date_value in self.release_date.split("-")] # Create list of album release data. Cast each date value to int
 
+		print(f"Release date str: {self.release_date}")
+		print(f"Date list: {date_list}")
+
 		self.release_year: int = date_list[0]
 		self.release_month_num: int = date_list[1]
 		self.release_month_name: str = self.months[date_list[1]]

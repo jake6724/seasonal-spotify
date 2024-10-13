@@ -1,4 +1,3 @@
-import json
 import requests
 import traceback
 import Utilities
@@ -31,6 +30,7 @@ class SpotifyTool:
 		self.AUTH_FAILED = 1
 		self.NO_QUERY_ITEMS_MATCH = 2
 		self.ERROR_PROCESSING_ALBUM_ITEM = 3
+		self.QUOTA_EXCEEDED = 4
 
 	def read_credentials(self) -> None:
 		# Read client creds from local file
@@ -72,7 +72,7 @@ class SpotifyTool:
 	def initialize_album_database(self) -> None:
 		"""Create dict with year-month:[] structure. Used to store album image urls."""
 		months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
-		for year in range(1958, 2025):
+		for year in range(1940, 2025): # Albums can have a release date earlier than when they charted
 			for month in months:
 				key = f"{year}-{month}"
 				self.database[key] = [] 
@@ -94,13 +94,16 @@ class SpotifyTool:
 			if album_reponse.status_code == 401:
 				self.update_auth_token()
 				continue
+			elif album_reponse == 429:
+				return self.QUOTA_EXCEEDED
 
 			elif album_reponse.status_code == 200:
 				try:
 					for i in range(self.REQUEST_COUNT): 	# Try all items returned by request
+						print("Call")
 						album_data = album_reponse.json()	
 
-						album_release_date_precision = (album_data["albums"]["items"][0]["release_date_precision"]).strip() 
+						album_release_date_precision = (album_data["albums"]["items"][i]["release_date_precision"]).strip() 
 						if album_release_date_precision != "day": # This could be month, with extra error handling
 							continue
 
@@ -111,10 +114,10 @@ class SpotifyTool:
 						album_release_date = (album_data["albums"]["items"][i]["release_date"]).strip()
 						new_album = Album(album_title, album_artist, album_url, album_img_url, album_release_date)
 
-						self.debug_album(i, new_album)
+						self.debug_album(i, new_album, album_reponse)
 
 						if self.validate_album(query_artist, query_title, new_album):
-							print(new_album)
+							print("val suc")
 							self.store_album(new_album)
 							return (new_album, self.SUCCESS)
 						
@@ -132,7 +135,6 @@ class SpotifyTool:
 		This is intended to check if get_album() returned the correct album, since the spotify API will return options even if it cannot find an exact match
 		to the search query. This method is not full-proof.
 		""" 
-
 		return True if (Album.artist == query_artist) and (Album.title == search_album_title) else False
 
 	def store_album(self, album: Album) -> None:
@@ -155,7 +157,7 @@ class SpotifyTool:
 		else:
 			print("Non 200 status code recieved during image download")
 
-	def debug_album(self, index: int, new_album: Album) -> None: # Write to a file for debugging
+	def debug_album(self, index: int, new_album: Album, reponse) -> None: # Write to a file for debugging
 		with open(f"./debug/album_items.txt", "a") as f: 
 			f.write(f"Item {index}===============================================================================================\n")
 			f.write(f"album_title: {new_album.title}\n")
@@ -163,6 +165,9 @@ class SpotifyTool:
 			f.write(f"album_artist: {new_album.url}\n")
 			f.write(f"album_artist: {new_album.img_url}\n")
 			f.write(f"album_artist: {new_album.release_date}\n")
+
+		with open(f"./debug/album_data.json", "a") as f:
+			f.write(reponse.text)
 
 	def print_tool_data(self) -> None:
 		print(f"CLIENT_ID: {self.CLIENT_ID}\nCLIENT_SECRET: {self.CLIENT_SECRET}\nSPOTIFY_TOKEN_URL: {self.SPOTIFY_TOKEN_URL}\nSPOTIFY_SEARCH_URL: {self.SPOTIFY_SEARCH_URL}\nAUTH_TOKEN: {self.AUTH_TOKEN}\nCREDENTIALS: {self.CREDENTIALS_HEADER}")
