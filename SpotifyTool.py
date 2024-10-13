@@ -5,16 +5,13 @@ import Utilities
 from Album import Album
 
 """
-TODO: Figure out what to do about album names with like remasted and stuff in them
-
-TODO: Add URL reponse checking / error handling
-TODO: Convert print statements to an error log ? 
+TODO: Convert print statements to a log
 TODO: Add type hinting to func params
 TODO: Finish all Docstrings
 """
 
 class SpotifyTool: 
-	def __init__(self):
+	def __init__(self) -> None:
 		self.CLIENT_ID = ""
 		self.CLIENT_SECRET = ""
 		self.SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token"
@@ -26,10 +23,16 @@ class SpotifyTool:
 		self.read_credentials()
 		self.update_auth_token()
 
-		self.album_database = {}
+		self.database = {}
 		self.initialize_album_database()
 
-	def read_credentials(self):
+		# Return codes
+		self.SUCCESS = 0
+		self.AUTH_FAILED = 1
+		self.NO_QUERY_ITEMS_MATCH = 2
+		self.ERROR_PROCESSING_ALBUM_ITEM = 3
+
+	def read_credentials(self) -> None:
 		# Read client creds from local file
 		with open("client_creds", "r") as client_creds:
 			creds = client_creds.readlines()
@@ -66,102 +69,77 @@ class SpotifyTool:
 		self.AUTH_TOKEN = access_token
 		self.CREDENTIALS_HEADER = {'Authorization': f'Bearer {self.AUTH_TOKEN}'}
 
-	def initialize_album_database(self):
-		"""Create database structure:\n
-		   self.album_database = {1999: {1: {1:[], 2:[], 3:[], etc.}, 2:{1:[], 2:[], 3:[], etc.}, etc.}, 2000: {1: {1:[], 2:[], 3:[], etc.}, 2:{1:[], 2:[], 3:[], etc.}, etc.}}}\n
-		   Database can be accessed SpotifyTool.album_database[year][month][day][index]. 
-		   [day] points to a list which contains all albums released that day, unsorted.
+	def initialize_album_database(self) -> None:
+		"""Create dict with year-month:[] structure. Used to store album image urls."""
+		months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
+		for year in range(1958, 2025):
+			for month in months:
+				key = f"{year}-{month}"
+				self.database[key] = [] 
 
-		"""
-		for year in range(1958, 2022):
-			self.album_database[year] = {}
-			for month in range(1, 13):
-				self.album_database[year][month] = {}
-				for day in range(1, 31):
-					self.album_database[year][month][day] = []
+	def get_album(self, query_artist: str, query_title: str) -> tuple[Album, int]:
+		"""Get album by artist and title with Spotify API.\nReturn: Album obj. and return code."""
+		query_artist = query_artist.lower()
+		query_title = query_title.lower()
 
-	def print_database(self):
-		# TODO: Output too large to be useful. Maybe write to a file in a nicely formatted way?
-		for year in self.album_database:
-			print(f"{year}: {self.album_database[year]}")
-
-	def get_album(self, artist: str, album_title: str) -> Album:
-		"""
-		Get album by artist and title with Spotify API.\n
-		Return: new Album obj.  
-		"""
-		
 		album_query = {
-			'q': f'{artist} {album_title}',
+			'q': f'{query_artist} {query_title}',
 			'type': 'album',
 			'limit': f'{self.REQUEST_COUNT}'
-		}
+		}		
 
-		for query in range(self.MAX_RETRIES + 1):	# Allow 401 error to update token and retry specified number of times
+		for query in range(self.MAX_RETRIES + 1):	# Reset auth_token if query fails specified number of times
 			album_reponse = requests.get(self.SPOTIFY_SEARCH_URL, params=album_query, headers=self.CREDENTIALS_HEADER)
 
-			with open("./debug/album_full.json", "w") as f:
-				f.write(album_reponse.text) 
-			
-			if album_reponse.status_code == 200:
+			if album_reponse.status_code == 401:
+				self.update_auth_token()
+				continue
+
+			elif album_reponse.status_code == 200:
 				try:
 					for i in range(self.REQUEST_COUNT): 	# Try all items returned by request
 						album_data = album_reponse.json()	
 
-						# TODO: Is there a better way to search for all of this? Maybe JMEPath package
-						# TODO: If we don't find the correct album, try the next one in the list ?
-						# ISSUE: If an album got popular after its release (Nat king cole christmas song), it hard to validate it...
-
 						album_release_date_precision = (album_data["albums"]["items"][0]["release_date_precision"]).strip() 
-						if album_release_date_precision != "day": # We could switch this to month, but it would require extra work for the release date formatting
+						if album_release_date_precision != "day": # This could be month, with extra error handling
 							continue
 
-						album_title = (album_data["albums"]["items"][i]["name"]).strip()
-						album_artist = (album_data["albums"]["items"][i]["artists"][0]["name"]).strip() # TODO: This will only grab the first artist listed
-						album_url = (album_data["albums"]["items"][i]["external_urls"]["spotify"]).strip() 
-						album_img_url = (album_data["albums"]["items"][i]["images"][1]["url"]).strip() 
-						album_release_date = (album_data["albums"]["items"][i]["release_date"]).strip() 
+						album_title = (album_data["albums"]["items"][i]["name"]).strip().lower()
+						album_artist = (album_data["albums"]["items"][i]["artists"][0]["name"]).strip().lower() # TODO: This will only grab the first artist listed
+						album_url = (album_data["albums"]["items"][i]["external_urls"]["spotify"]).strip()
+						album_img_url = (album_data["albums"]["items"][i]["images"][1]["url"]).strip()
+						album_release_date = (album_data["albums"]["items"][i]["release_date"]).strip()
 						new_album = Album(album_title, album_artist, album_url, album_img_url, album_release_date)
 
-						def debug(index: int, new_album: Album) -> None: # Write to a file for debugging
-							with open(f"./debug/album_items.txt", "a") as f: 
-								f.write(f"Item {i}===============================================================================================\n")
-								f.write(f"album_title: {new_album.title}\n")
-								f.write(f"album_artist: {new_album.artist}\n")
-								f.write(f"album_artist: {new_album.url}\n")
-								f.write(f"album_artist: {new_album.img_url}\n")
-								f.write(f"album_artist: {new_album.release_date}\n")
+						self.debug_album(i, new_album)
 
-						# debug(i, new_album)
-
-						# Try to validate if the album accessed is the album intended by the query above
-						if self.validate_album(artist, album_title, new_album):
-							return new_album
+						if self.validate_album(query_artist, query_title, new_album):
+							print(new_album)
+							self.store_album(new_album)
+							return (new_album, self.SUCCESS)
 						
-					return # No query response items matched
+					return (None, self.NO_QUERY_ITEMS_MATCH)
 				
 				except Exception:
 					print(traceback.format_exc())
-					return
-				
-			elif album_reponse.status_code == 401:
-				self.update_auth_token()
+					return (None, self.ERROR_PROCESSING_ALBUM_ITEM)
 
-		return	# Query could not authenticate after self.MAX_RETRIES number of attempts
+		return (None, self.AUTH_FAILED)
 	
-	
-	def validate_album(self, search_artist: str, search_album_title: str, Album: Album) -> bool:
+	def validate_album(self, query_artist: str, search_album_title: str, Album: Album) -> bool:
 		"""
-		Check whether the meta-data in Album obj. matches the original search parameter\n
+		Check whether the meta-data in Album obj. matches the original query parameters\n
 		This is intended to check if get_album() returned the correct album, since the spotify API will return options even if it cannot find an exact match
-		to the search query. This method is likely not full-proof...
-		"""
-		# print(f"Comparing {Album.artist} to {search_artist}")
-		# print(f"Comparing {Album.title} to {search_album_title}") 
-		return True if (Album.artist == search_artist) and (Album.title == search_album_title) else False
+		to the search query. This method is not full-proof.
+		""" 
+
+		return True if (Album.artist == query_artist) and (Album.title == search_album_title) else False
 
 	def store_album(self, album: Album) -> None:
-		self.album_database[album.release_year][album.release_month][album.release_day].append(album.img_url)	# Store the album img url at year -> month -> day [img_url]
+		key = f"{album.release_year}-{album.release_month_name}"
+		self.database[key].append(album.img_url)
+
+	# def write_database
 
 	def download_img(self, image_url: str) -> None:
 		try:
@@ -177,5 +155,19 @@ class SpotifyTool:
 		else:
 			print("Non 200 status code recieved during image download")
 
-	def print_tool_data(self):
+	def debug_album(self, index: int, new_album: Album) -> None: # Write to a file for debugging
+		with open(f"./debug/album_items.txt", "a") as f: 
+			f.write(f"Item {index}===============================================================================================\n")
+			f.write(f"album_title: {new_album.title}\n")
+			f.write(f"album_artist: {new_album.artist}\n")
+			f.write(f"album_artist: {new_album.url}\n")
+			f.write(f"album_artist: {new_album.img_url}\n")
+			f.write(f"album_artist: {new_album.release_date}\n")
+
+	def print_tool_data(self) -> None:
 		print(f"CLIENT_ID: {self.CLIENT_ID}\nCLIENT_SECRET: {self.CLIENT_SECRET}\nSPOTIFY_TOKEN_URL: {self.SPOTIFY_TOKEN_URL}\nSPOTIFY_SEARCH_URL: {self.SPOTIFY_SEARCH_URL}\nAUTH_TOKEN: {self.AUTH_TOKEN}\nCREDENTIALS: {self.CREDENTIALS_HEADER}")
+
+	def print_database(self) -> None:
+		# TODO: Output too large to be useful. Maybe write to a file in a nicely formatted way?
+		for key in self.database.keys():
+			print(f"{key}: {self.database[key]}")

@@ -25,3 +25,10 @@ class AlbumDataTool:
 					album_list.append(album_info)
 
 		return album_list
+	
+	def check_collection_album(artist: str, title:str, release_date: str) -> bool:
+		identifier = ["greatest", "best of"]
+		pass
+	
+	def format_collection_album(artist: str, title:str, release_date: str) -> list[str,str,str]:
+		pass
