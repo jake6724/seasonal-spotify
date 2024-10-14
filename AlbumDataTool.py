@@ -1,6 +1,7 @@
 import csv
 
 """
+TODO: Strip EP from album name
 TODO: 'various artists' is a very common artist... is this an issue?
 """
 
@@ -17,6 +18,7 @@ class AlbumDataTool:
 		with open(self.INPUT_FILE, "r") as input:
 			data = csv.reader(input, delimiter=',')
 			for line in data:
+				line[2].replace("(EP)","")
 				album_info = [line[3], line[2], line[0]] 		# Artist, album title, release date
 
 				album_id = f"{album_info[0]} {album_info[1]}"	# Only store each album one time

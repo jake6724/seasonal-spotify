@@ -4,6 +4,7 @@ import Utilities
 from Album import Album
 
 """
+TODO: Check if query return was empty before iterating
 TODO: Convert print statements to a log
 TODO: Add type hinting to func params
 TODO: Finish all Docstrings
@@ -23,7 +24,11 @@ class SpotifyTool:
 		self.update_auth_token()
 
 		self.database = {}
+		self.DATABASE_FILE = "database.txt"
 		self.initialize_album_database()
+		# Reset database file
+		with open(self.DATABASE_FILE, "w") as dbf:
+			dbf.write("")
 
 		# Return codes
 		self.SUCCESS = 0
@@ -100,11 +105,10 @@ class SpotifyTool:
 			elif album_reponse.status_code == 200:
 				try:
 					for i in range(self.REQUEST_COUNT): 	# Try all items returned by request
-						print("Call")
 						album_data = album_reponse.json()	
 
 						album_release_date_precision = (album_data["albums"]["items"][i]["release_date_precision"]).strip() 
-						if album_release_date_precision != "day": # This could be month, with extra error handling
+						if album_release_date_precision != "day": # This could include month, with extra error handling
 							continue
 
 						album_title = (album_data["albums"]["items"][i]["name"]).strip().lower()
@@ -117,8 +121,8 @@ class SpotifyTool:
 						self.debug_album(i, new_album, album_reponse)
 
 						if self.validate_album(query_artist, query_title, new_album):
-							print("val suc")
 							self.store_album(new_album)
+							self.write_database(new_album)
 							return (new_album, self.SUCCESS)
 						
 					return (None, self.NO_QUERY_ITEMS_MATCH)
@@ -141,7 +145,10 @@ class SpotifyTool:
 		key = f"{album.release_year}-{album.release_month_name}"
 		self.database[key].append(album.img_url)
 
-	# def write_database
+	def write_database(self, album: Album) -> None:
+		with open(self.DATABASE_FILE, "a") as dbf:
+			dbf.write(f"{album.release_year},{album.release_month_name},{album.img_url}\n")
+
 
 	def download_img(self, image_url: str) -> None:
 		try:
@@ -166,7 +173,7 @@ class SpotifyTool:
 			f.write(f"album_artist: {new_album.img_url}\n")
 			f.write(f"album_artist: {new_album.release_date}\n")
 
-		with open(f"./debug/album_data.json", "a") as f:
+		with open(f"./debug/album_data.json", "w", encoding='utf-8') as f:
 			f.write(reponse.text)
 
 	def print_tool_data(self) -> None:
